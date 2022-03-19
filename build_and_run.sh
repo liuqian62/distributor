@@ -5,5 +5,5 @@ BASEDIR=$(dirname "$SCRIPT")
 cd $BASEDIR
 
 sh build.sh
-cd bin
-./CodeCraft-2022
+# cd bin
+./bin/CodeCraft-2022

@@ -4,10 +4,15 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <algorithm>
+using namespace std;
 
 class Site
 {
 private:
+
+
+public:
     string _name;
     int _max_bandwidth;
     int _available_bandwidth;
@@ -15,7 +20,6 @@ private:
     int _num_distribute;
     vector<int> cost;
 
-public:
     Site(string name, int max_bandwidth);
     int available();
     bool get(int width);
@@ -23,3 +27,4 @@ public:
     ~Site();
 };
 
+#endif

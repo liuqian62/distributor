@@ -1,4 +1,7 @@
 #include "Site.h"
+#include <string>
+
+using namespace std;
 
 Site::Site(string name, int max_bandwidth)
 {
@@ -33,17 +36,18 @@ void Site::add_num()
     {
         _full_distribute++;
     }
-    else(
+    else{
+                    int used =this->_max_bandwidth-this->_available_bandwidth;
         if(cost.size()==0){
-            int used =this->_max_bandwidth-this->_available_bandwidth
+
             cost.push_back(used);
         }else{
-            if(cost[0]/2<used){
+            if((cost[0]/2)<used){
                 cost.push_back(used);
-                sort(cost.begin(),cost.end());
+                // sort(cost.begin(),cost.end());
             }
         }
-    )
+    }
 }
 Site::~Site()
 {
