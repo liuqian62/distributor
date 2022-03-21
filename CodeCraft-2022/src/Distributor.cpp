@@ -233,15 +233,15 @@ void Distributor::read_demand()
 
 void Distributor::do_distribute(int dis)
 {
+    /*
 
-    // bandwidth_left =
-
-    // 客户节点长度
+    // 平均分配方案
+    
+       // 客户节点长度
     int customer_length = demands[dis].size();
     // 边缘节点长度
     int edge_length = site_names.size();
-    // 边缘节点的剩余带宽上限
-    // bandwidth_left = sites;
+
     // 初始化流量分配
     if (is_first_time)
     {
@@ -252,9 +252,100 @@ void Distributor::do_distribute(int dis)
             {
                 // distirbute_table[i][j] = 0;
                 temp.push_back(0);
-                // 打印查看，最后关闭
-                // cout << distirbute_table[i][j] << " ";
-                // cout << endl;
+
+            }
+            distirbute_table.push_back(temp);
+        }
+    }
+    else
+    {
+        for (int i = 0; i < edge_length; i++)
+        {
+            
+            for (int j = 0; j < customer_length; j++)
+            {
+                distirbute_table[i][j] = 0;
+
+            }
+            
+        }
+    }
+
+// cout<<"!!!!"<<endl;
+    for (int i = 0; i < customer_length; i++)
+    {
+        // sum i-th bandwith
+        double sum_i_bandwith = 0.0;
+        for (int q = 0; q < edge_length; q++)
+        {
+            if (status[q][i])
+            {
+
+                // 平均分配原则，可连接节点状态计数
+                sum_i_bandwith += status[q][i]; 
+                
+                cout << endl;
+            }
+        }
+        
+
+        
+        // 计算最后的带宽分配
+
+        int count_sum_num = sum_i_bandwith;
+        double bandwith_sum = 0.0;
+        for (int j = 0; j < edge_length; j++)
+        {
+
+            // 平均分配原则
+            if (status[j][i]){
+                if(count_sum_num >1){
+                    distirbute_table[j][i] = status[j][i] * demands[dis][i] /sum_i_bandwith;
+                    // 统计已为客户节点分配带宽，解决平均分配小数相加不为0的问题
+                    bandwith_sum += distirbute_table[j][i];
+                }
+                if(count_sum_num ==1){
+                    // 最后一个边缘节点承担所有客户节点的剩余带宽需求
+                    distirbute_table[j][i] =  demands[dis][i] - bandwith_sum ;
+
+                }
+                count_sum_num -=1;
+
+            }
+            // 至此，第i个节点的带宽分配完毕
+        }
+    }
+    */
+
+
+    // 按剩余带宽权重分配；还未使用延时
+    
+    // 客户节点长度
+    int customer_length = demands[dis].size();
+    // 边缘节点长度
+    int edge_length = site_names.size();
+    // 初始化边缘节点的剩余带宽上限
+    vector <double> bandwidth_left;
+    for (int j=0;j<edge_length;j++){
+        bandwidth_left.push_back(sites[j].available());
+        /*
+        cout << "节点" << j << "可用带宽上限" << bandwidth_left[j] <<"";
+        cout << endl;
+        */
+
+    }
+
+    // 初始化流量分配
+    if (is_first_time)
+    {
+        for (int i = 0; i < edge_length; i++)
+        {
+            vector<int> temp;
+            for (int j = 0; j < customer_length; j++)
+            {
+
+                temp.push_back(0);
+
             }
             distirbute_table.push_back(temp);
         }
@@ -280,21 +371,37 @@ void Distributor::do_distribute(int dis)
     for (int i = 0; i < customer_length; i++)
     {
         // sum i-th bandwith
-        int sum_i_bandwith = 0;
+        double sum_i_bandwith = 0.0;
         for (int q = 0; q < edge_length; q++)
         {
             if (status[q][i])
             {
-                sum_i_bandwith += sites[q].available();
+                // 权重分配原则，但是带宽计数有问题
+                // sum_i_bandwith += sites[q].available(); 
+                // 平均分配原则
+                sum_i_bandwith += bandwidth_left[q]; 
+                /*
+                cout << "带宽" << bandwidth_left[q]<< "求和" << sum_i_bandwith << " ";
+                cout << endl;
+                */
             }
         }
-        cout<<"!!!!"<<endl;
+        //cout<<"客户节点 i 可用带宽"<< sum_i_bandwith << endl;
+        // 权重分配原则
+        
         vector<double> weight_d;
+        int count_sum_num = 0;
         for (int j = 0; j < edge_length; j++)
         {
             if (status[j][i])
+            {
                 // 权重weight_d = qos * 边缘节点j的剩余带宽值 / 客户节点 i 的可接触带宽总量
-                weight_d.push_back( sites[j].available() / sum_i_bandwith);
+                weight_d.push_back( bandwidth_left[j]/ sum_i_bandwith);
+                count_sum_num +=1;
+                //cout << "节点" << j << i << "延时" << var_qoss[j][i];
+                //cout << "权重" << weight_d[j] << "";
+                // cout << endl;
+            }
                 
             else
             {
@@ -308,22 +415,57 @@ void Distributor::do_distribute(int dis)
         {
             sum_weight_d += weight_d[i];
         }
+        
+        
         // 计算最后的带宽分配
         // d(i,t) 为demands[dis][i]
+
+
+        double bandwith_sum = 0.0;
         for (int j = 0; j < edge_length; j++)
         {
-            distirbute_table[j][i] = 0.5 * (1 - weight_d[j] / sum_weight_d) * demands[dis][i];
-            // 第j个节点剩余带宽 = 第j个节点带宽 -  分配走的带宽
-            sites[j]._available_bandwidth -= distirbute_table[j][i];
+            // 权重分配原则
+
+            if (weight_d[j]){
+                if(count_sum_num >1){
+                    // 未使用延时，只使用边缘结点带宽分配权重
+                    distirbute_table[j][i] = weight_d[j]*demands[dis][i];
+                    // 统计已为客户节点分配带宽，解决平均分配小数相加不为0的问题
+                    bandwith_sum += distirbute_table[j][i];
+                    bandwidth_left[j] -= distirbute_table[j][i];
+
+                    //cout << "权重和" << sum_weight_d << "";
+                    /*
+                    cout << "需求" << demands[dis][i] << "已满足需求" << bandwith_sum ;
+                    cout << endl;
+
+                    cout << "节点" << j << "剩余带宽" << bandwidth_left[j] << "" ;
+                    cout << endl;
+                    */
+                }
+                if(count_sum_num ==1){
+                    // 最后一个边缘节点承担所有客户节点的剩余带宽需求
+                    distirbute_table[j][i] =  demands[dis][i] - bandwith_sum ;
+                    bandwidth_left[j] -= distirbute_table[j][i];
+
+                }
+                count_sum_num -=1;
+                // 第j个节点剩余带宽 = 第j个节点带宽 -  分配走的带宽
+                
+            }
             // 至此，第i个节点的带宽分配完毕
         }
     }
+
+
+    
 }
 void Distributor::final_check(int dis)
 {
-    cout<<"check"<<endl;
+    // cout<<"check"<<endl;
     vector<int> sites_used;
     vector<int> customers_get;
+    vector<int> sites_available;
     for(int i=0;i<site_names.size();i++){
         int tem_used =0;
         for(int j=0;j<customer_ids.size();j++){
@@ -331,8 +473,9 @@ void Distributor::final_check(int dis)
             tem_used+=distirbute_table[i][j];
         }
         sites_used.push_back(tem_used);
+        sites_available.push_back(sites[i]._max_bandwidth-tem_used);
     }
- cout<<"check"<<endl;
+//  cout<<"check"<<endl;
      for(int i=0;i<customer_ids.size();i++){
         int tem_get =0;
         for(int j=0;j<site_names.size();j++){
@@ -341,12 +484,28 @@ void Distributor::final_check(int dis)
         }
         customers_get.push_back(tem_get);
     }
- cout<<"check"<<endl;
+//  cout<<"check"<<endl;
     for(int i=0;i<customer_ids.size();i++){
         if(demands[dis][i]!=customers_get[i]){
             cout<<"distribute false!!!"<<endl;
-            cout<<"demand:"<<demands[dis][i]<<endl;
-            cout<<"get:"<<customers_get[i]<<endl;
+            cout<<"denmand:"<<demands[dis][i]<<endl;
+            cout<<"get;"<<customers_get[i]<<endl;
+        }else{
+            // cout<<"sucsess"<<endl;
+        }
+    }
+    for(int i=0;i<site_names.size();i++){
+        if(sites_available[i]<0){
+            cout<<i<<sites_available[i]<<endl;
+            for(int j=0;j<customer_ids.size();j++){
+                if(status[i][j]){
+                    for(int k=0;k<site_names.size();k++){
+                        
+                    }
+                }
+            }
+        }else{
+            // cout<<sites_available[i]<<endl;
         }
     }
 }
