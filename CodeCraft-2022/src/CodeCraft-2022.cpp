@@ -9,11 +9,11 @@
 #include <cstring>
 #include "Distributor.h"
 
-string Input_demand = "data/demand.csv";
-string Input_bandwidth = "data/site_bandwidth.csv";
-string Input_qos = "data/qos.csv";
-string Input_config = "data/config.ini";
-string Output = "output/solution.txt";
+string Input_demand = "/data/demand.csv";
+string Input_bandwidth = "/data/site_bandwidth.csv";
+string Input_qos = "/data/qos.csv";
+string Input_config = "/data/config.ini";
+string Output = "/output/solution.txt";
 
 using namespace std;
 

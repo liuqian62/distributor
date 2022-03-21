@@ -13,11 +13,11 @@
 class Distributor
 {
 private:
-    string _Input_demand = "data/demand.csv";
-    string _Input_bandwidth = "data/site_bandwidth.csv";
-    string _Input_qos = "data/qos.csv";
-    string _Input_config = "data/config.ini";
-    string _Output = "output/solution.txt";
+    string _Input_demand = "/data/demand.csv";
+    string _Input_bandwidth = "/data/site_bandwidth.csv";
+    string _Input_qos = "/data/qos.csv";
+    string _Input_config = "/data/config.ini";
+    string _Output = "/output/solution.txt";
 
     int qos_constraint;
     bool is_first_time;
