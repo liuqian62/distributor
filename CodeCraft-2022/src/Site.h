@@ -4,7 +4,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <algorithm>
+// #include <algorithm>
 using namespace std;
 
 class Site
@@ -23,7 +23,9 @@ public:
     Site(string name, int max_bandwidth);
     int available();
     bool get(int width);
-    void add_num();
+    void final_get(int width);
+    bool full_able();
+    int used();
     ~Site();
 };
 

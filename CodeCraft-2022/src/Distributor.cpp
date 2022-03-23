@@ -1,6 +1,4 @@
 #include "Distributor.h"
-#include <sys/stat.h>
-#include <sys/types.h>
 
 Distributor::Distributor(string Input_demand,
                          string Input_bandwidth,
@@ -96,15 +94,6 @@ void Distributor::read_qos()
     string buf;
     char *r = nullptr;
     getline(ifs, buf);
-    // istringstream sin;
-    // sin.str(buf);
-    // string customer_id;
-    // std::getline(sin, customer_id, ',');
-    // while (std::getline(sin, customer_id, ',')) //将字符串流sin中的字符读到field字符串中，以逗号为分隔符
-    //     {
-    //         customer_ids.push_back(customer_id); //将每一格中的数据逐个push
-
-    //     }
 
     r = strtok((char *)buf.data(), ",");
 
@@ -130,6 +119,7 @@ void Distributor::read_qos()
         r = strtok(NULL, ",");
         vector<int> rows;
         vector<bool> statu;
+        int cus_num = 0;
         while (r != NULL)
         {
             int qos = atoi(r);
@@ -137,6 +127,7 @@ void Distributor::read_qos()
             {
                 rows.push_back(sites[site_names.size()]._max_bandwidth);
                 statu.push_back(true);
+                cus_num++;
             }
             else
             {
@@ -147,6 +138,7 @@ void Distributor::read_qos()
         }
         table.push_back(rows);
         status.push_back(statu);
+        custormer_num_of_sites.push_back(cus_num);
     }
     // for (int i = 0; i < customer_ids.size(); i++)
     // {
@@ -178,7 +170,24 @@ void Distributor::read_qos()
     //     cout << endl;
     // }
     ifs.close();
+    for (int i = 0; i <= customer_ids.size(); i++)
+    {
+        for (int j = 0; j < site_names.size(); j++)
+        {
+            if (custormer_num_of_sites[j] == customer_ids.size() - i)
+            {
+                sort_site_id.push_back(j);
+            }
+        }
+    }
+    //     for (int i=0;i<sort_site_id.size();i++){
+    //     cout << sort_site_id[i]<<":"<<custormer_num_of_sites[sort_site_id[i]] << endl;
+
+    // }
+
+    // get_information_table();
 }
+
 void Distributor::read_demand()
 {
     ifstream ifs;
@@ -232,15 +241,16 @@ void Distributor::read_demand()
     // }
 
     ifs.close();
+    get_information_demand();
 }
+// void Distributor::softmax(vector <double> x) {
 
-void Distributor::do_distribute(int dis)
+void Distributor::do_distribute_average(int dis)
 {
-    /*
 
     // 平均分配方案
 
-       // 客户节点长度
+    // 客户节点长度
     int customer_length = demands[dis].size();
     // 边缘节点长度
     int edge_length = site_names.size();
@@ -255,7 +265,6 @@ void Distributor::do_distribute(int dis)
             {
                 // distirbute_table[i][j] = 0;
                 temp.push_back(0);
-
             }
             distirbute_table.push_back(temp);
         }
@@ -268,103 +277,7 @@ void Distributor::do_distribute(int dis)
             for (int j = 0; j < customer_length; j++)
             {
                 distirbute_table[i][j] = 0;
-
             }
-
-        }
-    }
-
-// cout<<"!!!!"<<endl;
-    for (int i = 0; i < customer_length; i++)
-    {
-        // sum i-th bandwith
-        double sum_i_bandwith = 0.0;
-        for (int q = 0; q < edge_length; q++)
-        {
-            if (status[q][i])
-            {
-
-                // 平均分配原则，可连接节点状态计数
-                sum_i_bandwith += status[q][i];
-
-                cout << endl;
-            }
-        }
-
-
-
-        // 计算最后的带宽分配
-
-        int count_sum_num = sum_i_bandwith;
-        double bandwith_sum = 0.0;
-        for (int j = 0; j < edge_length; j++)
-        {
-
-            // 平均分配原则
-            if (status[j][i]){
-                if(count_sum_num >1){
-                    distirbute_table[j][i] = status[j][i] * demands[dis][i] /sum_i_bandwith;
-                    // 统计已为客户节点分配带宽，解决平均分配小数相加不为0的问题
-                    bandwith_sum += distirbute_table[j][i];
-                }
-                if(count_sum_num ==1){
-                    // 最后一个边缘节点承担所有客户节点的剩余带宽需求
-                    distirbute_table[j][i] =  demands[dis][i] - bandwith_sum ;
-
-                }
-                count_sum_num -=1;
-
-            }
-            // 至此，第i个节点的带宽分配完毕
-        }
-    }
-    */
-
-    // 按剩余带宽权重分配；还未使用延时
-
-    // 客户节点长度
-    int customer_length = demands[dis].size();
-    // 边缘节点长度
-    int edge_length = site_names.size();
-    // 初始化边缘节点的剩余带宽上限
-    vector<double> bandwidth_left;
-    for (int j = 0; j < edge_length; j++)
-    {
-        bandwidth_left.push_back(sites[j].available());
-        /*
-        cout << "节点" << j << "可用带宽上限" << bandwidth_left[j] <<"";
-        cout << endl;
-        */
-    }
-
-    // 初始化流量分配
-    if (is_first_time)
-    {
-        for (int i = 0; i < edge_length; i++)
-        {
-            vector<int> temp;
-            for (int j = 0; j < customer_length; j++)
-            {
-
-                temp.push_back(0);
-            }
-            distirbute_table.push_back(temp);
-        }
-    }
-    else
-    {
-        for (int i = 0; i < edge_length; i++)
-        {
-            // vector<int> temp;
-            for (int j = 0; j < customer_length; j++)
-            {
-                distirbute_table[i][j] = 0;
-                // temp.push_back(0);
-                // 打印查看，最后关闭
-                // cout << distirbute_table[i][j] << " ";
-                // cout << endl;
-            }
-            // distirbute_table.push_back(temp);
         }
     }
 
@@ -377,102 +290,69 @@ void Distributor::do_distribute(int dis)
         {
             if (status[q][i])
             {
-                // 权重分配原则，但是带宽计数有问题
-                // sum_i_bandwith += sites[q].available();
-                // 平均分配原则
-                sum_i_bandwith += bandwidth_left[q];
-                /*
-                cout << "带宽" << bandwidth_left[q]<< "求和" << sum_i_bandwith << " ";
-                cout << endl;
-                */
-            }
-        }
-        // cout<<"客户节点 i 可用带宽"<< sum_i_bandwith << endl;
-        //  权重分配原则
 
-        vector<double> weight_d;
-        int count_sum_num = 0;
-        for (int j = 0; j < edge_length; j++)
-        {
-            if (status[j][i])
-            {
-                // 权重weight_d = qos * 边缘节点j的剩余带宽值 / 客户节点 i 的可接触带宽总量
-                weight_d.push_back(bandwidth_left[j] / sum_i_bandwith);
-                count_sum_num += 1;
-                // cout << "节点" << j << i << "延时" << var_qoss[j][i];
-                // cout << "权重" << weight_d[j] << "";
-                //  cout << endl;
-            }
+                // 平均分配原则，可连接节点状态计数
+                sum_i_bandwith += status[q][i];
 
-            else
-            {
-                weight_d.push_back(0.0);
+                // cout << endl;
             }
-        }
-        // cout<<"!!!!"<<endl;
-        // 权重求和
-        double sum_weight_d = 0;
-        for (int i = 0; i < edge_length; i++)
-        {
-            sum_weight_d += weight_d[i];
         }
 
         // 计算最后的带宽分配
-        // d(i,t) 为demands[dis][i]
 
+        int count_sum_num = sum_i_bandwith;
         double bandwith_sum = 0.0;
         for (int j = 0; j < edge_length; j++)
         {
-            // 权重分配原则
 
-            if (weight_d[j])
+            // 平均分配原则
+            if (status[j][i])
             {
                 if (count_sum_num > 1)
                 {
-                    // 未使用延时，只使用边缘结点带宽分配权重
-                    distirbute_table[j][i] = weight_d[j] * demands[dis][i];
+                    distirbute_table[j][i] = status[j][i] * demands[dis][i] / sum_i_bandwith;
                     // 统计已为客户节点分配带宽，解决平均分配小数相加不为0的问题
                     bandwith_sum += distirbute_table[j][i];
-                    bandwidth_left[j] -= distirbute_table[j][i];
-
-                    // cout << "权重和" << sum_weight_d << "";
-                    /*
-                    cout << "需求" << demands[dis][i] << "已满足需求" << bandwith_sum ;
-                    cout << endl;
-
-                    cout << "节点" << j << "剩余带宽" << bandwidth_left[j] << "" ;
-                    cout << endl;
-                    */
                 }
                 if (count_sum_num == 1)
                 {
                     // 最后一个边缘节点承担所有客户节点的剩余带宽需求
                     distirbute_table[j][i] = demands[dis][i] - bandwith_sum;
-                    bandwidth_left[j] -= distirbute_table[j][i];
                 }
                 count_sum_num -= 1;
-                // 第j个节点剩余带宽 = 第j个节点带宽 -  分配走的带宽
             }
             // 至此，第i个节点的带宽分配完毕
         }
     }
 }
+
 void Distributor::final_check(int dis)
 {
     // cout<<"check"<<endl;
     vector<int> sites_used;
     vector<int> customers_get;
     vector<int> sites_available;
+    vector<int> customer_nums; // the number of customer every site can distribute
     for (int i = 0; i < site_names.size(); i++)
     {
         int tem_used = 0;
+        int tem_num = 0;
         for (int j = 0; j < customer_ids.size(); j++)
         {
             // int tem_used =0;
             tem_used += distirbute_table[i][j];
+            if (distirbute_table[i][j] < 0)
+            {
+                cout << "get a num < 0 at (" << i << "," << j << ")" << endl;
+            }
+            if (status[i][j])
+            {
+                tem_num++;
+            }
         }
         sites_used.push_back(tem_used);
         sites_available.push_back(sites[i]._max_bandwidth - tem_used);
+        customer_nums.push_back(tem_num);
     }
     //  cout<<"check"<<endl;
     for (int i = 0; i < customer_ids.size(); i++)
@@ -488,21 +368,24 @@ void Distributor::final_check(int dis)
     //  cout<<"check"<<endl;
     for (int i = 0; i < customer_ids.size(); i++)
     {
+
         if (demands[dis][i] != customers_get[i])
         {
             cout << "distribute false!!!" << endl;
             cout << "denmand:" << demands[dis][i] << endl;
-            cout << "get;" << customers_get[i] << endl;
+            cout << "get:" << customers_get[i] << endl;
         }
         else
         {
             // cout<<"sucsess"<<endl;
         }
     }
+    bool flag = false;
     for (int i = 0; i < site_names.size(); i++)
     {
         if (sites_available[i] < 0)
         {
+            int max_id = 0, max_num = 0, cus_id = 0;
             cout << i << sites_available[i] << endl;
             for (int j = 0; j < customer_ids.size(); j++)
             {
@@ -510,11 +393,18 @@ void Distributor::final_check(int dis)
                 {
                     for (int k = 0; k < site_names.size(); k++)
                     {
+
                         if (status[k][j] && sites_available[k] > 0)
                         {
+                            if (max_num < customer_nums[k])
+                            {
+                                max_id = k;
+                                cus_id = j;
+                                max_num = customer_nums[k];
+                            }
 
                             distirbute_table[k][j] += sites_available[k];
-                            distirbute_table[k][i] -= sites_available[k];
+                            distirbute_table[i][j] -= sites_available[k];
                             sites_available[i] += sites_available[k];
                             sites_available[k] = 0;
                         }
@@ -529,21 +419,244 @@ void Distributor::final_check(int dis)
                     break;
                 }
             }
-        if(sites_available[i] <0)
-        {
-
-        }
+            if (sites_available[i] < 0)
+            {
+                flag = true;
+                distirbute_table[max_id][cus_id] -= sites_available[i];
+                distirbute_table[i][cus_id] += sites_available[i];
+                sites_available[max_id] += sites_available[i];
+                sites_available[i] = 0;
+            }
         }
         else
         {
             // cout<<sites_available[i]<<endl;
         }
     }
+    if (flag)
+    {
+        final_check(dis);
+    }
 }
 
-void Distributor::optimize()
+void Distributor::optimize(int dis)
 {
+    vector<int> site_max;
+    double sum_max = 0.0;
+    for (int i = 0; i < site_names.size(); i++)
+    {
+        for (int j = 0; j < customer_ids.size(); j++)
+        {
+            if (status[i][j])
+            {
+                site_max.push_back(sites[i]._max_bandwidth);
+                sum_max += sites[i]._max_bandwidth;
+                break;
+            }
+            if (j == customer_ids.size() - 1)
+            {
+                site_max.push_back(0);
+            }
+        }
+    }
+
+    // cout<<"find a full"<<endl;
+    vector<int> site_average;
+    for (int i = 0; i < site_names.size(); i++)
+    {
+        // cout<<"find a full"<<i<<endl;
+        // cout<<dis<<endl;
+        // cout<<this->eveytime_demand.size()<<endl;
+        // site_average.push_back(this->eveytime_demand[dis] * site_max[i] / sum_max);
+        site_average.push_back(this->average_demand * site_max[i] / sum_max);
+        // cout<<site_average[i]<<endl;
+    }
+    // cout<<"find a full"<<endl;
+    vector<int> site_used;
+    vector<int> cost_add;
+    for(int i=0;i<site_names.size();i++){
+        cost_add.push_back(0);
+    }
+
+    int tep_demand = this->eveytime_demand[dis];
+    int tep_average_demand = average_demand;
+    int count = 0;
+    for (int sort_id = 0; sort_id < site_names.size(); sort_id++)
+    {
+        int i = sort_site_id[sort_id];
+        // cout<<sort_site_id.size()<<endl;
+        // cout<<site_names.size()<<endl;
+        // cout<<i<<endl;
+        int tem_used = 0;
+        int tem_num = 0;
+        for (int j = 0; j < customer_ids.size(); j++)
+        {
+
+            // int tem_used =0;
+            tem_used += distirbute_table[i][j];
+        }
+        // site_used.push_back(tem_used);
+        // cost_add.push_back(tem_used - site_average[i]);
+
+        // cout<<"find a full"<<endl;
+        if (custormer_num_of_sites[i] == 0)
+        {
+            // cost_add.push_back(0);
+            cost_add[i]=0;
+            continue;
+        }
+        // if (tep_demand > 0.5*this->max_demand )
+        // if (i%13==0)
+        // cout<<custormer_num_of_sites[i]<<endl;
+        if (tep_average_demand >0)
+        // if (custormer_num_of_sites[i] >= customer_ids.size() - 1)
+        // if(false)
+        {
+            // cout<<i<<endl;
+
+            // cout<<"find a full"<<endl;
+            // cost_add.push_back(tem_used - sites[i]._max_bandwidth);
+            cost_add[i]=tem_used - sites[i]._max_bandwidth;
+            sites[i]._full_distribute++;
+
+            // count++;
+            tep_demand -= (sites[i]._max_bandwidth - site_average[i]);
+            tep_average_demand -= sites[i]._max_bandwidth;
+        }
+        // else if (tep_demand > 0.4 * this->max_demand)
+        else if (tep_demand > 1.0 * this->average_demand)
+        {
+            if (sites[i].full_able())
+            // if (true)
+            {
+                // cout<<"find a full"<<endl;
+                // cost_add.push_back(tem_used - sites[i]._max_bandwidth);
+                cost_add[i]=tem_used - sites[i]._max_bandwidth;
+
+                sites[i]._full_distribute++;
+                // count++;
+                tep_demand -= (sites[i]._max_bandwidth - site_average[i]);
+            }
+            else
+            {
+                // cost_add.push_back(tem_used - 300);
+                // cost_add.push_back(tem_used);
+                cost_add[i]=tem_used;
+                // cost_add.push_back(tem_used - 0.3*site_average[i]);
+                continue;
+            }
+        }
+        else
+        {
+            // cost_add.push_back(tem_used - sites[i].cost[0]);
+            // cost_add.push_back(tem_used - 0.3*site_average[i]);
+            // cost_add.push_back(tem_used);
+             cost_add[i]=tem_used;
+            // cost_add.push_back(tem_used - 300);
+            // sites_available.push_back(sites[i]._max_bandwidth - tem_used);
+        }
+    }
+    if (true)
+    {
+        for (int i = 0; i < site_names.size(); i++)
+        {
+        //    int i=sort_site_id[id];
+            while (cost_add[i] < 0)
+            {
+                int max_cost_add = 0;
+                int max_id = -1;
+                int can_add = 0;
+                for (int j = 0; j < site_names.size(); j++)
+                {
+
+                    if (cost_add[j] > max_cost_add)
+                    {
+                        for (int m = 0; m < customer_ids.size(); m++)
+                        {
+                            if (status[i][m] && status[j][m] && min(distirbute_table[i][m], distirbute_table[j][m]) != 0)
+                            {
+                                max_cost_add = cost_add[j];
+                                max_id = j;
+                            }
+                        }
+                    }
+                }
+                if (max_id != -1)
+                {
+                    int j = max_id;
+                    for (int k = 0; k < customer_ids.size(); k++)
+                    {
+                        can_add = 0;
+                        if (status[i][k] && status[j][k])
+                        {
+                            int can = min(distirbute_table[i][k], distirbute_table[j][k]);
+                            int have = min(abs(cost_add[i]), cost_add[j]);
+                            // if(can==0){
+                            //     max_cost_add =0;
+                            // }
+                            can_add += can;
+                            if (can < have)
+                            {
+                                distirbute_table[i][k] += can;
+                                distirbute_table[j][k] -= can;
+                                cost_add[i] += can;
+                                cost_add[j] -= can;
+                            }
+                            else
+                            {
+                                distirbute_table[i][k] += have;
+                                distirbute_table[j][k] -= have;
+                                cost_add[i] += have;
+                                cost_add[j] -= have;
+                            }
+                            if (cost_add[i] == 0)
+                            {
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (max_id == -1)
+                {
+                    break;
+                }
+            }
+        }
+    }
+
+    for (int i = 0; i < site_names.size(); i++)
+    {
+        int tem_used = 0;
+        // int tem_num = 0;
+        for (int j = 0; j < customer_ids.size(); j++)
+        {
+            // int tem_used =0;
+            tem_used += distirbute_table[i][j];
+        }
+        sites[i].final_get(tem_used);
+    }
 }
+
+void Distributor::distribute()
+{
+    string dir = "./output"; //文件夹路径
+
+    // int flag = mkdir(dir.c_str(), S_IRWXU);  //Linux创建文件夹
+    ofs.open(_Output, ios::trunc);
+    for (int dis = 0; dis < this->times.size(); dis++)
+    {
+        // cout<<"!!!"<<endl;nabieren
+        do_distribute(dis);
+        // cout<<"!!!"<<endl;
+        final_check(dis);
+        // final_check(dis);
+        optimize(dis);
+        output();
+        // cout<<sites[0]._max_bandwidth*0.95<<endl;
+    }
+    ofs.close();
+}
+
 void Distributor::output()
 {
 
@@ -587,24 +700,6 @@ void Distributor::output()
         }
         ofs << endl;
     }
-}
-void Distributor::distribute()
-{
-     string dir = "/output"; //文件夹路径
-
-      int flag = mkdir(dir.c_str(), 0777);  //Linux创建文件夹
-      cout<<flag<<endl;
-    ofs.open(_Output, ios::trunc);
-    for (int dis = 0; dis < this->times.size(); dis++)
-    {
-        // cout<<"!!!"<<endl;
-        do_distribute(dis);
-        // cout<<"!!!"<<endl;
-        final_check(dis);
-        optimize();
-        output();
-    }
-    ofs.close();
 }
 
 Distributor::~Distributor()

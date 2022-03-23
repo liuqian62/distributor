@@ -26,6 +26,12 @@ class IOFile():
     config = 'data/config.ini'
     output = 'output/solution.txt'
 
+    # demand = 'pressure_data/demand.csv'
+    # qos = 'pressure_data/qos.csv'
+    # bandwidth = 'pressure_data/site_bandwidth.csv'
+    # config = 'pressure_data/config.ini'
+    # output = 'output/solution.txt'
+
 
 class Plot(ABC):
     id_cnt = 0
