@@ -11,6 +11,7 @@ Site::Site(string name, int max_bandwidth)
     this->_full_distribute = 0;
     this->_num_distribute = 0;
     this->cost.push_back(0);
+    this->full_dised=false;
 }
 
 int Site::available()
@@ -32,6 +33,7 @@ bool Site::get(int width)
 }
 void Site::final_get(int width)
 {
+    this->full_dised=false;
     this->_num_distribute += 1;
     if (width >= 0.9*_max_bandwidth)
     {
@@ -45,8 +47,8 @@ void Site::final_get(int width)
         {
             // cost.push_back(used);
             // cost[0] = width*0.6+cost[0]*0.4;
-            cost[0] = width;
-            // cost[0] = width*0.3+cost[0]*0.7;
+            // cost[0] = width;
+            cost[0] = width*0.3+cost[0]*0.7;
             // sort(cost.begin(),cost.end());
         }
         else{

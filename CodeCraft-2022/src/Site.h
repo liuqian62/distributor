@@ -18,6 +18,7 @@ public:
     int _available_bandwidth;
     int _full_distribute;
     int _num_distribute;
+    bool full_dised;
     vector<int> cost;
 
     Site(string name, int max_bandwidth);

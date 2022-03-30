@@ -23,6 +23,15 @@ void Distributor::read_data()
 
 void Distributor::read_config()
 {
+    // vector<vector<int>> test_size;
+    // for(int i=0;i<10;i++){
+    //     vector<int>tep;
+    //     test_size.push_back(tep);
+
+    // }
+    //         cout<<"size:"<<endl;
+    //     cout<<test_size.size()<<endl;
+    //     cout<<test_size[0].size()<<endl;
 
     ifstream ifs;
     ifs.open(_Input_config, ios::in);
@@ -70,8 +79,10 @@ void Distributor::read_bandwidth()
         string site_name = r;
         r = strtok(NULL, ",");
         int band = atoi(r);
-        Site site(site_name, band);
-        sites.push_back(site);
+        site_map.emplace(site_name, band);
+        // cout<<"!!"<<endl;
+        // Site site(site_name, band);
+        // sites.push_back(site);
     }
     // for (int i = 0; i < sites.size(); i++)
     // {
@@ -101,14 +112,16 @@ void Distributor::read_qos()
     while (r != NULL)
     {
         string customer_id = r;
-        // if(customer_id.find(" ")!=-1&&customer_id.find("\t")!=-1&&customer_id.find("\n")!=-1){
-        //     customer_id = strtok((char *)customer_id.data(), " ");
+        // if(customer_id.find("\r\n")!=-1){
+        //     customer_id = strtok((char *)customer_id.data(), "\r\n");
         //     cout<<"!!!"<<endl;
         // }
 
         customer_ids.push_back(customer_id);
         r = strtok(NULL, ",");
     }
+
+    customer_ids[customer_ids.size() - 1].erase(customer_ids[customer_ids.size() - 1].size() - 1);
 
     while (getline(ifs, buf))
     {
@@ -125,7 +138,8 @@ void Distributor::read_qos()
             int qos = atoi(r);
             if (qos < qos_constraint)
             {
-                rows.push_back(sites[site_names.size()]._max_bandwidth);
+                // rows.push_back(sites[site_names.size()]._max_bandwidth);
+                rows.push_back(site_map[site_name]);
                 statu.push_back(true);
                 cus_num++;
             }
@@ -139,7 +153,41 @@ void Distributor::read_qos()
         table.push_back(rows);
         status.push_back(statu);
         custormer_num_of_sites.push_back(cus_num);
+        if (cus_num != 0)
+        {
+            // free_cost.push_back(sites[status.size() - 1]._available_bandwidth);
+            free_cost.push_back(site_map[site_name]);
+        }
+        else
+        {
+            free_cost.push_back(0);
+        }
     }
+    for (int i = 0; i < site_names.size(); i++)
+    {
+        Site site(site_names[i], site_map[site_names[i]]);
+        sites.push_back(site);
+        // cout<<site_names[i]<<site_map[site_names[i]]<<endl;
+    }
+
+    int tep_sort_free_id[free_cost.size()] = {0};
+    vector<int> tep_free_cost(free_cost.begin(), free_cost.end());
+    BubbleSort(tep_free_cost, free_cost.size(), tep_sort_free_id);
+    //    for (int i = 0; i < free_cost.size(); i++)
+    // {
+    //     cout << "value: " << free_cost[i] << "   Index: " << tep_sort_free_id[i] << endl;
+
+    // }
+    for (int i = 0; i < free_cost.size(); i++)
+    {
+        sort_free_id.push_back(tep_sort_free_id[free_cost.size() - i - 1]);
+    }
+    //        for (int i = 0; i < free_cost.size(); i++)
+    // {
+    //     cout << "value: " << free_cost[sort_free_id[i]] << "   Index: " << sort_free_id[i] << endl;
+
+    // }
+
     // for (int i = 0; i < customer_ids.size(); i++)
     // {
     //     cout << "客户节点id " << customer_ids[i] << endl;
@@ -202,15 +250,30 @@ void Distributor::read_demand()
     string buf;
     char *r = nullptr;
     getline(ifs, buf);
-    // r = strtok((char *)buf.data(), ",");
+    // getline(ifs, buf);
 
-    // r = strtok(NULL, ",");
-    // while (r != NULL)
-    // {
-    //     string customer_id = r;
-    //     customer_ids.push_back(customer_id);
-    //     r = strtok(NULL, ",");
-    // }
+    r = strtok((char *)buf.data(), ",");
+
+    r = strtok(NULL, ",");
+    vector<string> tem_cus_id;
+    while (r != NULL)
+    {
+        string customer_id = r;
+        // if(customer_id.find("\r\n")!=-1){
+        //     customer_id = strtok((char *)customer_id.data(), "\r\n");
+        //     cout<<"!!!"<<endl;
+        // }
+
+        tem_cus_id.push_back(customer_id);
+        r = strtok(NULL, ",");
+    }
+
+    tem_cus_id[tem_cus_id.size() - 1].erase(tem_cus_id[tem_cus_id.size() - 1].size() - 1);
+    unordered_map<string, int> unomap;
+    for (int i = 0; i < tem_cus_id.size(); i++)
+    {
+        unomap.emplace(tem_cus_id[i], i);
+    }
 
     while (getline(ifs, buf))
     {
@@ -220,6 +283,7 @@ void Distributor::read_demand()
         times.push_back(time_name);
         r = strtok(NULL, ",");
         vector<int> rows;
+        vector<int> new_rows;
         // vector<bool> statu;
         while (r != NULL)
         {
@@ -227,7 +291,12 @@ void Distributor::read_demand()
             rows.push_back(demand);
             r = strtok(NULL, ",");
         }
-        demands.push_back(rows);
+        for (int i = 0; i < rows.size(); i++)
+        {
+            new_rows.push_back(rows[unomap[customer_ids[i]]]);
+            // cout<<unomap[customer_ids[i]]<<endl;
+        }
+        demands.push_back(new_rows);
     }
 
     // for (int i = 0; i < demands.size(); i++)
@@ -285,14 +354,14 @@ void Distributor::do_distribute_average(int dis)
     for (int i = 0; i < customer_length; i++)
     {
         // sum i-th bandwith
-        double sum_i_bandwith = 0.0;
+        int sum_i_bandwith = 0;
         for (int q = 0; q < edge_length; q++)
         {
             if (status[q][i])
             {
 
                 // 平均分配原则，可连接节点状态计数
-                sum_i_bandwith += status[q][i];
+                sum_i_bandwith++;
 
                 // cout << endl;
             }
@@ -301,7 +370,7 @@ void Distributor::do_distribute_average(int dis)
         // 计算最后的带宽分配
 
         int count_sum_num = sum_i_bandwith;
-        double bandwith_sum = 0.0;
+        int bandwith_sum = 0;
         for (int j = 0; j < edge_length; j++)
         {
 
@@ -310,7 +379,7 @@ void Distributor::do_distribute_average(int dis)
             {
                 if (count_sum_num > 1)
                 {
-                    distirbute_table[j][i] = status[j][i] * demands[dis][i] / sum_i_bandwith;
+                    distirbute_table[j][i] = demands[dis][i] / sum_i_bandwith;
                     // 统计已为客户节点分配带宽，解决平均分配小数相加不为0的问题
                     bandwith_sum += distirbute_table[j][i];
                 }
@@ -441,6 +510,7 @@ void Distributor::final_check(int dis)
 
 void Distributor::optimize(int dis)
 {
+
     vector<int> site_max;
     double sum_max = 0.0;
     for (int i = 0; i < site_names.size(); i++)
@@ -464,103 +534,241 @@ void Distributor::optimize(int dis)
     vector<int> site_average;
     for (int i = 0; i < site_names.size(); i++)
     {
-        // cout<<"find a full"<<i<<endl;
-        // cout<<dis<<endl;
-        // cout<<this->eveytime_demand.size()<<endl;
+        // cout<<site_max[i]<<endl;
+        double weight = site_max[i] / sum_max;
         // site_average.push_back(this->eveytime_demand[dis] * site_max[i] / sum_max);
-        site_average.push_back(this->average_demand * site_max[i] / sum_max);
+        site_average.push_back(this->expected_cost * weight);
         // cout<<site_average[i]<<endl;
     }
     // cout<<"find a full"<<endl;
     vector<int> site_used;
     vector<int> cost_add;
-    for(int i=0;i<site_names.size();i++){
-        cost_add.push_back(0);
-    }
-
-    int tep_demand = this->eveytime_demand[dis];
-    int tep_average_demand = average_demand;
-    int count = 0;
-    for (int sort_id = 0; sort_id < site_names.size(); sort_id++)
+    for (int i = 0; i < site_names.size(); i++)
     {
-        int i = sort_site_id[sort_id];
-        // cout<<sort_site_id.size()<<endl;
-        // cout<<site_names.size()<<endl;
-        // cout<<i<<endl;
         int tem_used = 0;
-        int tem_num = 0;
+
         for (int j = 0; j < customer_ids.size(); j++)
         {
 
             // int tem_used =0;
             tem_used += distirbute_table[i][j];
         }
-        // site_used.push_back(tem_used);
-        // cost_add.push_back(tem_used - site_average[i]);
+        site_used.push_back(tem_used);
 
-        // cout<<"find a full"<<endl;
-        if (custormer_num_of_sites[i] == 0)
-        {
-            // cost_add.push_back(0);
-            cost_add[i]=0;
-            continue;
-        }
-        // if (tep_demand > 0.5*this->max_demand )
-        // if (i%13==0)
-        // cout<<custormer_num_of_sites[i]<<endl;
-        if (tep_average_demand >0)
-        // if (custormer_num_of_sites[i] >= customer_ids.size() - 1)
-        // if(false)
-        {
-            // cout<<i<<endl;
+        cost_add.push_back(0);
+    }
 
-            // cout<<"find a full"<<endl;
-            // cost_add.push_back(tem_used - sites[i]._max_bandwidth);
-            cost_add[i]=tem_used - sites[i]._max_bandwidth;
-            sites[i]._full_distribute++;
+    // int tep_demand = this->eveytime_demand[dis];
+    // // int tep_average_demand = average_demand;
 
-            // count++;
-            tep_demand -= (sites[i]._max_bandwidth - site_average[i]);
-            tep_average_demand -= sites[i]._max_bandwidth;
-        }
-        // else if (tep_demand > 0.4 * this->max_demand)
-        else if (tep_demand > 1.0 * this->average_demand)
+    // vector<int> useful_sort_free_id;
+    // for (int i = 0; i < site_names.size(); i++)
+    // {
+    //     if (sites[sort_free_id[i]]._full_distribute < (demands.size()) / 20)
+    //     {
+    //         if (free_cost[sort_free_id[i]] != 0)
+    //         {
+    //             useful_sort_free_id.push_back(sort_free_id[i]);
+    //         }
+    //     }
+    // }
+    // // for (int i = 0; i < useful_sort_free_id.size(); i++)
+    // // {
+    // //     cout << free_cost[useful_sort_free_id[i]] <<"!!"<< endl;
+    // // }
+    for (int i = 0; i < every_time_full_id[dis].size(); i++)
+    {
+        int id = every_time_full_id[dis][i];
+        cost_add[id] = site_used[id] - sites[id]._max_bandwidth;
+
+        sites[id]._full_distribute++;
+        sites[id].full_dised = true;
+    }
+
+    // if (tep_demand > 1.2 * expected_cost)
+    // {
+    //     for (int i = 0; i < useful_sort_free_id.size(); i++)
+    //     {
+    //         if (tep_demand <= 1.0 * expected_cost)
+    //         {
+    //             break;
+    //         }
+    //         if (tep_demand - 1.0 * expected_cost >= free_cost[useful_sort_free_id[i]])
+    //         {
+    //             tep_demand -= free_cost[useful_sort_free_id[i]];
+    //             cost_add[useful_sort_free_id[i]] = site_used[useful_sort_free_id[i]] - sites[useful_sort_free_id[i]]._max_bandwidth;
+
+    //             sites[useful_sort_free_id[i]]._full_distribute++;
+    //             sites[useful_sort_free_id[i]].full_dised = true;
+    //         }
+    //         else
+    //         {
+    //             if (i == useful_sort_free_id.size() - 2)
+    //             {
+    //                 tep_demand -= free_cost[useful_sort_free_id[i]];
+    //                 cost_add[useful_sort_free_id[i]] = site_used[useful_sort_free_id[i]] - sites[useful_sort_free_id[i]]._max_bandwidth;
+
+    //                 sites[useful_sort_free_id[i]]._full_distribute++;
+    //                 sites[useful_sort_free_id[i]].full_dised = true;
+
+    //                 // tep_demand -= free_cost[useful_sort_free_id[i+1]];
+    //                 // cost_add[useful_sort_free_id[i+1]] = site_used[useful_sort_free_id[i+1]] - sites[useful_sort_free_id[i+1]]._max_bandwidth;
+
+    //                 // sites[useful_sort_free_id[i+1]]._full_distribute++;
+    //                 // sites[useful_sort_free_id[i+1]].full_dised = true;
+    //                 break;
+    //             }
+
+    //             if (tep_demand - 1.0 * expected_cost < free_cost[useful_sort_free_id[i]] && tep_demand - expected_cost > free_cost[useful_sort_free_id[i + 1]])
+    //             {
+    //                 tep_demand -= free_cost[useful_sort_free_id[i]];
+    //                 cost_add[useful_sort_free_id[i]] = site_used[useful_sort_free_id[i]] - sites[useful_sort_free_id[i]]._max_bandwidth;
+
+    //                 sites[useful_sort_free_id[i]]._full_distribute++;
+    //                 sites[useful_sort_free_id[i]].full_dised = true;
+
+    //                 //                     tep_demand -= free_cost[useful_sort_free_id[i+1]];
+    //                 // cost_add[useful_sort_free_id[i+1]] = site_used[useful_sort_free_id[i+1]] - sites[useful_sort_free_id[i+1]]._max_bandwidth;
+
+    //                 // sites[useful_sort_free_id[i+1]]._full_distribute++;
+    //                 // sites[useful_sort_free_id[i+1]].full_dised = true;
+    //             }
+    //         }
+    //     }
+    // }
+
+    for (int i = 0; i < site_names.size(); i++)
+    {
+        if (!sites[i].full_dised)
         {
-            if (sites[i].full_able())
-            // if (true)
+            if (custormer_num_of_sites[i] == 0)
             {
-                // cout<<"find a full"<<endl;
-                // cost_add.push_back(tem_used - sites[i]._max_bandwidth);
-                cost_add[i]=tem_used - sites[i]._max_bandwidth;
-
-                sites[i]._full_distribute++;
-                // count++;
-                tep_demand -= (sites[i]._max_bandwidth - site_average[i]);
-            }
-            else
-            {
-                // cost_add.push_back(tem_used - 300);
-                // cost_add.push_back(tem_used);
-                cost_add[i]=tem_used;
-                // cost_add.push_back(tem_used - 0.3*site_average[i]);
+                // cost_add.push_back(0);
+                cost_add[i] = 0;
                 continue;
             }
-        }
-        else
-        {
-            // cost_add.push_back(tem_used - sites[i].cost[0]);
-            // cost_add.push_back(tem_used - 0.3*site_average[i]);
-            // cost_add.push_back(tem_used);
-             cost_add[i]=tem_used;
-            // cost_add.push_back(tem_used - 300);
-            // sites_available.push_back(sites[i]._max_bandwidth - tem_used);
+            cost_add[i] = site_used[i] - 1.0* site_average[i];
+            // cout<<site_average[i]<<endl;
+
+            // cost_add[i] = site_used[i] - 1500;
+            // cost_add[i] = site_used[i] -average_demand/site_names.size();
         }
     }
+
+    // for (int i = 0; i < site_names.size(); i++)
+    // {
+    //     cout << cost_add[i] << endl;
+    // }
+
+    // for (int sort_id = 0; sort_id < site_names.size(); sort_id++)
+    // // for (int i = 0; i < site_names.size(); i++)
+    // {
+    //     int i = sort_site_id[sort_id];
+
+    //     // cout<<sort_site_id.size()<<endl;
+    //     // cout<<site_names.size()<<endl;
+    //     // cout<<i<<endl;
+    //     int tem_used = 0;
+
+    //     for (int j = 0; j < customer_ids.size(); j++)
+    //     {
+
+    //         // int tem_used =0;
+    //         tem_used += distirbute_table[i][j];
+    //     }
+    //     // site_used.push_back(tem_used);
+    //     // cost_add.push_back(tem_used - site_average[i]);
+
+    //     // cout<<"find a full"<<endl;
+    //     if (custormer_num_of_sites[i] == 0)
+    //     {
+    //         // cost_add.push_back(0);
+    //         cost_add[i] = 0;
+    //         continue;
+    //     }
+    //     // if (tep_demand > 0.5*this->max_demand )
+    //     // if (i%13==0)
+    //     // cout<<custormer_num_of_sites[i]<<endl;
+    //     // if (tep_average_demand >0.6*average_demand)
+    //     // if (custormer_num_of_sites[i] >= customer_ids.size() - 1)
+
+    //     // if(false)
+    //     // {
+    //     //     // cout<<i<<endl;
+
+    //     //     // cout<<"find a full"<<endl;
+    //     //     // cost_add.push_back(tem_used - sites[i]._max_bandwidth);
+    //     //     cost_add[i]=tem_used - sites[i]._max_bandwidth;
+    //     //     sites[i]._full_distribute++;
+
+    //     //     // count++;
+    //     //     // tep_demand -= (sites[i]._max_bandwidth - site_average[i]);
+    //     //     tep_average_demand -= sites[i]._max_bandwidth;
+    //     // }
+
+    //     // else if (tep_demand > 0.4 * this->max_demand)
+    //     // else if (tep_demand > 1.1* this->average_demand)
+    //     // else if (tep_demand > 0.5* this->average_demand)
+    //     else if (tep_demand > 1.8 * expected_cost)
+
+    //     {
+    //         // if (sites[i].full_able())
+    //         // if (true)
+    //         if (sites[i]._full_distribute < (demands.size()) / 20)
+    //         {
+    //             // cout<<"find a full"<<endl;
+    //             // cost_add.push_back(tem_used - sites[i]._max_bandwidth);
+    //             cost_add[i] = tem_used - sites[i]._max_bandwidth;
+
+    //             sites[i]._full_distribute++;
+    //             // count++;
+    //             double lamda = 0;
+    //             if (custormer_num_of_sites[i] >= customer_ids.size() / 4)
+    //             {
+    //                 lamda = 1.0;
+    //             }
+    //             else
+    //             {
+    //                 lamda = 1.0;
+    //             }
+    //             // tep_demand -= (sites[i]._max_bandwidth - site_average[i])*lamda;
+    //             tep_demand -= (sites[i]._max_bandwidth) * lamda;
+    //         }
+    //         else
+    //         {
+    //             // cost_add.push_back(tem_used - 300);
+    //             // cost_add.push_back(tem_used);
+    //             // cost_add[i]=tem_used- 0.1*site_average[i];
+    //             // cost_add[i]=tem_used;
+    //             cost_add[i] = tem_used - 1.5 * site_average[i];
+    //             // cost_add[i]=tem_used- (1.1-(1.1*average_demand-tep_demand)/average_demand)*site_average[i];
+    //             // cost_add[i]=tem_used- sites[i].cost[0];
+    //             // cost_add[i]=tem_used-500;
+    //             // cost_add.push_back(tem_used - 0.3*site_average[i]);
+    //             continue;
+    //         }
+    //     }
+    //     else
+    //     {
+    //         // cost_add.push_back(tem_used - sites[i].cost[0]);
+    //         // cost_add.push_back(tem_used - 0.3*site_average[i]);
+    //         // cost_add.push_back(tem_used);
+    //         cost_add[i] = tem_used - 1.5 * site_average[i];
+    //         //  cost_add[i]=tem_used;
+    //         // cost_add[i]=tem_used- 0.1*site_average[i];
+    //         // cost_add[i]=tem_used- (1.1-(1.1*average_demand-tep_demand)/average_demand)*site_average[i];
+    //         // cost_add[i]=tem_used- sites[i].cost[0];
+    //         //  cost_add[i]=tem_used-500;
+    //         // cost_add.push_back(tem_used - 300);
+    //         // sites_available.push_back(sites[i]._max_bandwidth - tem_used);
+    //     }
+    // }
+
     if (true)
     {
         for (int i = 0; i < site_names.size(); i++)
         {
-        //    int i=sort_site_id[id];
+            //    int i=sort_site_id[id];
             while (cost_add[i] < 0)
             {
                 int max_cost_add = 0;
@@ -589,8 +797,19 @@ void Distributor::optimize(int dis)
                         can_add = 0;
                         if (status[i][k] && status[j][k])
                         {
-                            int can = min(distirbute_table[i][k], distirbute_table[j][k]);
-                            int have = min(abs(cost_add[i]), cost_add[j]);
+                            // int can = min(distirbute_table[i][k], distirbute_table[j][k]);
+                            int can = distirbute_table[j][k];
+                            int want_have = 0;
+                            if (cost_add[j] > 10)
+                            {
+                                want_have = 0.5 * cost_add[j];
+                            }
+                            else
+                            {
+                                want_have = cost_add[j];
+                            }
+                            // want_have = cost_add[j] + 0.1 * site_average[j];
+                            int have = min(abs(cost_add[i]), want_have);
                             // if(can==0){
                             //     max_cost_add =0;
                             // }
@@ -623,7 +842,65 @@ void Distributor::optimize(int dis)
             }
         }
     }
+    int num = 55;
+    while (num > 0)
+    // while (false)
+    {
+        num--;
+        vector<int> tep_cost_add(cost_add.begin(), cost_add.end());
+        int tep_sort_cost_add_id[cost_add.size()] = {0};
+        BubbleSort(tep_cost_add, cost_add.size(), tep_sort_cost_add_id);
+        for (int i = 0; i < cost_add.size(); i++)
+        {
+            int max_id = tep_sort_cost_add_id[cost_add.size() - 1 - i];
+            if (cost_add[max_id] < 0)
+            {
+                break;
+            }
+            for (int j = 0; j < cost_add.size(); j++)
+            {
+                int min_id = tep_sort_cost_add_id[j];
+                if (cost_add[max_id] <= cost_add[min_id])
+                {
+                    break;
+                }
+                if (custormer_num_of_sites[min_id] != 0)
+                {
+                    for (int k = 0; k < customer_ids.size(); k++)
+                    {
+                        if (status[max_id][k] && status[min_id][k] && distirbute_table[max_id][k] != 0)
+                        {
+                            int change_num = (cost_add[max_id] - cost_add[min_id]) / 2;
+                            int have = sites[min_id]._max_bandwidth;
+                            for (int m = 0; m < customer_ids.size(); m++)
+                            {
+                                have -= distirbute_table[min_id][m];
+                            }
+                            int want_change = min(change_num, have);
+                            int can = distirbute_table[max_id][k];
+                            if (can > want_change)
+                            {
+                                distirbute_table[max_id][k] -= want_change;
+                                distirbute_table[min_id][k] += want_change;
+                                cost_add[max_id] -= want_change;
+                                cost_add[min_id] += want_change;
+                            }
+                            else
+                            {
+                                distirbute_table[max_id][k] -= can;
+                                distirbute_table[min_id][k] += can;
+                                cost_add[max_id] -= can;
+                                cost_add[min_id] += can;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
+    // sort(cost_add.begin(), cost_add.end());
+    // cout << cost_add[cost_add.size() - 1] << endl;
     for (int i = 0; i < site_names.size(); i++)
     {
         int tem_used = 0;
@@ -669,7 +946,7 @@ void Distributor::output()
             if (is_first_time)
             {
                 // ofs<<customer_ids[i].size();
-                customer_ids[i].erase(customer_ids[i].size() - 1);
+                // customer_ids[i].erase(customer_ids[i].size() - 1);
                 ofs << customer_ids[i] << ":";
                 // ofs<<customer_ids[i]<<":";
                 is_first_time = false;

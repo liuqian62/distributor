@@ -2,6 +2,7 @@ import datetime
 import os
 from itertools import combinations
 from functools import reduce
+import math
 import sys
 from random import shuffle
 import numpy as np
@@ -9,7 +10,7 @@ import numpy as np
 
 record = None
 server_num, client_num, time_len = 0, 0, 0
-pressure = 0.6
+pressure = 0.3
 qos_lim = 0
 qos = None
 dist_matrix = None
@@ -23,20 +24,21 @@ def ask(msg: str, default: int):
 def read_input():
     global server_num, client_num, time_len, pressure
     server_num = ask('input server number (default 100):', 100)
-    client_num = ask('input client number (default 10):', 10)
-    time_len = ask('input time length (default 100):', 100)
-    inp = input('input pressure 0.01-0.99 (default 0.6):')
+    client_num = ask('input client number (default 30):', 30)
+    time_len = ask('input time length (default 1000):', 1000)
+    inp = input('input pressure 0.01-0.99 (default 0.3):')
     if inp.strip():
         pressure = float(inp.strip())
 
 def distribute_server():
     global record, qos_lim, qos
-    qos_lim = np.random.randint(200, 500)
-    qos = np.ceil(np.random.normal(qos_lim, 50, size=(server_num, client_num))).astype('int32')
+    qos_lim = np.random.randint(150, 300)
+    offset = np.random.randint(10, 50)
+    qos = np.ceil(np.random.normal(qos_lim+offset, 50, size=(server_num, client_num))).astype('int32')
     mask = np.random.randn()
     for t_idx in range(time_len):
-        dis_bd = np.random.randint(500, 300000, size=(server_num, client_num)) * (qos < qos_lim)
-        mask = np.random.randn(server_num, client_num) > 0.35
+        dis_bd = np.random.randint(0, math.ceil(550000 / client_num / 37), size=(server_num, client_num)) * (qos < qos_lim)
+        mask = np.abs(np.random.randn(server_num, client_num)) > 0.27
         dis_bd = dis_bd * mask
         record[t_idx] = dis_bd
 
@@ -64,21 +66,28 @@ def output(path: str):
     time_sep = datetime.timedelta(minutes=5)
     sname = gen_server_name(server_num)
     cname = gen_client_name(client_num)
-    with open(os.path.join(path, 'demand.csv'), 'w') as f:
+    with open(os.path.join(path, 'demand.csv'), 'w', newline='') as f:
         f.write('mtime,' + ','.join(cname) + '\r\n')
         for t_idx in range(time_len):
             time_str = curr_time.strftime("%Y-%m-%dT%H:%M")
             c_demand = record[t_idx].sum(axis=0)
+            demo_list=[1,2,3,4,5,6,7,8,9,10]
+            zero_mask = np.abs(np.random.randn(client_num))
+            # zero_mask =np.random.choice(demo_list,size=client_num,p=[0.1,0.2,0.2,0.2,0.2,0.05.0.05])
+            zero_mask = zero_mask > 1e-2
+            c_demand *= zero_mask
+            c_demand = c_demand*np.random.choice(demo_list,size=1,p=[0.2,0.2,0.05,0.05,0.05,0.05,0.05,0.1,0.17,0.08])
             c_demand = [ str(i) for i in c_demand ]
             f.write(time_str + ',' + ','.join(c_demand) + '\r\n')
             curr_time += time_sep
-    with open(os.path.join(path, 'site_bandwidth.csv'), 'w') as f:
+    with open(os.path.join(path, 'site_bandwidth.csv'), 'w', newline='') as f:
         f.write('site_name,bandwidth\r\n')
         for s_idx in range(server_num):
             bd_used = record.sum(axis=-1)[:, s_idx].max()
             bd_upper = np.ceil(bd_used / pressure).astype('int32')
+            bd_upper =bd_upper*10
             f.write(f'{sname[s_idx]},{bd_upper}\r\n')
-    with open(os.path.join(path, 'qos.csv'), 'w') as f:
+    with open(os.path.join(path, 'qos.csv'), 'w', newline='') as f:
         f.write('site_name,' + ','.join(cname) + '\r\n')
         for s_idx in range(server_num):
             s = sname[s_idx]
@@ -86,7 +95,7 @@ def output(path: str):
             qos_list = [ str(i) for i in qos_list ]
             qos_str = ','.join(qos_list)
             f.write(f'{s},{qos_str}\r\n')
-    with open(os.path.join(path, 'config.ini'), 'w') as f:
+    with open(os.path.join(path, 'config.ini'), 'w', newline='') as f:
         f.write('[config]\r\n')
         f.write(f'qos_constraint={qos_lim}\r\n')
 
@@ -95,7 +104,7 @@ if __name__ == '__main__':
     record = np.zeros((time_len, server_num, client_num), dtype=np.int32)
     distribute_server()
     if len(sys.argv) == 1:
-        output('pressure_data')
+        output('simulated_data')
     else:
         try: os.mkdir(sys.argv[1])
         except: pass

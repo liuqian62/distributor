@@ -11,11 +11,11 @@
 
 using namespace std;
 
-// string Input_demand = "/data/demand.csv";
-// string Input_bandwidth = "/data/site_bandwidth.csv";
-// string Input_qos = "/data/qos.csv";
-// string Input_config = "/data/config.ini";
-// string Output = "/output/solution.txt";
+string Input_demand = "/data/demand.csv";
+string Input_bandwidth = "/data/site_bandwidth.csv";
+string Input_qos = "/data/qos.csv";
+string Input_config = "/data/config.ini";
+string Output = "/output/solution.txt";
 
 
 // string Input_demand = "pressure_data/demand.csv";
@@ -24,13 +24,19 @@ using namespace std;
 // string Input_config = "pressure_data/config.ini";
 // string Output = "output/solution.txt";
 
+// string Input_demand = "simulated_data/demand.csv";
+// string Input_bandwidth = "simulated_data/site_bandwidth.csv";
+// string Input_qos = "simulated_data/qos.csv";
+// string Input_config = "simulated_data/config.ini";
+// string Output = "output/solution.txt";
 
 
-string Input_demand = "data/demand.csv";
-string Input_bandwidth = "data/site_bandwidth.csv";
-string Input_qos = "data/qos.csv";
-string Input_config = "data/config.ini";
-string Output = "output/solution.txt";
+
+// string Input_demand = "data/demand.csv";
+// string Input_bandwidth = "data/site_bandwidth.csv";
+// string Input_qos = "data/qos.csv";
+// string Input_config = "data/config.ini";
+// string Output = "output/solution.txt";
 
 
 

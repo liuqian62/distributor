@@ -94,12 +94,12 @@ void Distributor::do_distribute_weight(int dis)
         float random = rand() % (n + 1) / (float)(n + 1);
         // cout << "rand"  << random << endl;
 
-        double bandwith_sum = 0.0;
+        int bandwith_sum = 0;
         for (int j = 0; j < edge_length; j++)
         {
             // 权重分配原则
 
-            if (weight_d[j])
+            if (weight_d[j]>0)
             {
                 if (count_sum_num > 1)
                 {

@@ -1,5 +1,5 @@
 #include "Site.h"
-// #include <unordered_map>
+#include <unordered_map>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -28,6 +28,12 @@ private:
     bool is_first_time;
     double average_demand;
     int max_demand=0;
+    int expected_cost;
+    unordered_map<string,int> site_map;
+    float xishu =1.0;
+    int best_covered_site_id0;
+    int best_covered_site_id1;
+    
     ofstream ofs;
     vector<Site> sites;
     vector<vector<int>> table;
@@ -40,8 +46,13 @@ private:
     vector<vector<int>> distirbute_table;
     vector<int> eveytime_demand;
     vector<int> custormer_num_of_sites;
+    // vector<int> sort_custormer_num_of_sites_id;
     vector<int> sort_site_id;
-    
+    vector<int> free_cost;
+    vector<int> sort_free_id;
+    vector<int> sort_demand_id;
+    vector<vector<int>> every_time_full_id;
+    vector<int> full_used_time;
 
 public:
     /**
@@ -75,6 +86,8 @@ public:
      *
      */
     void read_bandwidth();
+
+    void BubbleSort(vector<int>&  p, int length, int * ind_diff);
 
     /**
      * @brief read qos
