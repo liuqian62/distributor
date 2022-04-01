@@ -7,12 +7,14 @@ from subprocess import getoutput
 from typing import Tuple, List
 from abc import ABC, abstractmethod
 import numpy as np
-import mpld3
-import matplotlib.pyplot as plt
-from mpld3._server import serve as mpld3_server
+# import mpld3
+# import matplotlib.pyplot as plt
+# from mpld3._server import serve as mpld3_server
 
 
 cname, sname, qos, qos_lim = None, None, None, None
+stream_id_map, stream_id_list = None, None
+base_cost = 0
 client_demand = None
 bandwidth = None
 time_label = None
@@ -20,17 +22,11 @@ cname_map = {}
 sname_map = {}
 
 class IOFile():
-    demand = 'data/demand.csv'
-    qos = 'data/qos.csv'
-    bandwidth = 'data/site_bandwidth.csv'
-    config = 'data/config.ini'
-    output = 'output/solution.txt'
-
-    # demand = 'pressure_data/demand.csv'
-    # qos = 'pressure_data/qos.csv'
-    # bandwidth = 'pressure_data/site_bandwidth.csv'
-    # config = 'pressure_data/config.ini'
-    # output = 'output/solution.txt'
+    demand = './data/demand.csv'
+    qos = './data/qos.csv'
+    bandwidth = './data/site_bandwidth.csv'
+    config = './data/config.ini'
+    output = './output/solution.txt'
 
 
 class Plot(ABC):
@@ -236,14 +232,35 @@ def read_demand() -> Tuple[List[str], List[int]]:
     fname = IOFile.demand
     with open(fname) as f:
         data = f.read().splitlines()
-    client_name = data[0].split(',')[1:]
+    client_name = data[0].split(',')[2:]
     client_demand = []
     time_label = []
+    prev_time_label = 'the placeholder of previous time'
+    record_in_this_time = {}
+    stream_id_map = {}
+    stream_id_list = []
+    stream_id_idx_cnt = 0
     for each in data[1:]:
         d = each.split(',')
-        time_label.append(d[0])
-        client_demand.append(list(map(int, d[1:])))
-    return time_label, client_name, client_demand
+        current_time_label = d[0]
+        current_stream_id = d[1]
+        if current_stream_id not in stream_id_map:
+            idx = stream_id_idx_cnt
+            stream_id_map[current_stream_id] = idx
+            stream_id_list.append(current_stream_id)
+            stream_id_idx_cnt += 1
+        else:
+            idx = stream_id_map[current_stream_id]
+        if prev_time_label != current_time_label:
+            prev_time_label = current_time_label
+            time_label.append(current_time_label)
+            if record_in_this_time:
+                client_demand.append(record_in_this_time)
+            record_in_this_time = {}
+        current_demand = list(map(int, d[2:]))
+        record_in_this_time[idx] = current_demand
+    client_demand.append(record_in_this_time)
+    return time_label, client_name, client_demand, stream_id_map, stream_id_list
 
 def read_server_bandwidth() -> Tuple[List[str], List[int]]:
     fname = IOFile.bandwidth
@@ -271,11 +288,13 @@ def read_qos() -> Tuple[List[str], List[str], List[List[int]]]:
     return client_name, server_name, qos_array
 
 def read_qos_limit() -> int:
+    global qos_lim, base_cost
     fname = IOFile.config
     with open(fname) as f:
         data = f.read().splitlines()
     qos_lim = int(data[1].split('=')[1])
-    return qos_lim
+    base_cost = int(data[2].split('=')[1])
+    return qos_lim, base_cost
 
 def validate_file_exist():
     if not os.path.exists(IOFile.output):
@@ -294,34 +313,37 @@ def validate_file_exist():
 
 def get_input_data():
     global cname, sname, qos, qos_lim, bandwidth, client_demand, time_label
+    global stream_id_map, stream_id_list, base_cost
     cname, sname, qos = read_qos()
-    for idx, name in enumerate(cname):
-        cname_map[name] = idx
     for idx, name in enumerate(sname):
         sname_map[name] = idx
-    qos = np.array(qos)
-    time_label, client_name, client_demand = read_demand()
+    time_label, client_name, client_demand, stream_id_map, stream_id_list = read_demand()
+    for idx, name in enumerate(client_name):
+        cname_map[name] = idx
     client_idx_list = []
-    for c in cname:
-        idx = client_name.index(c)
+    for c in client_name:
+        idx = cname.index(c)
         client_idx_list.append(idx)
-    client_demand = np.array(client_demand)[:, client_idx_list]
+    qos = np.array(qos)[:, client_idx_list]
+    cname = client_name
+    # client_demand = np.array(client_demand)[:, client_idx_list]
     server_name, server_bandwidth = read_server_bandwidth()
     bandwidth = []
     for s in sname:
         idx = server_name.index(s)
         bandwidth.append(server_bandwidth[idx])
-    qos_lim = read_qos_limit()
+    qos_lim, base_cost = read_qos_limit()
     bandwidth = np.array(bandwidth)
 
 
 class OutputAnalyser():
     def __init__(self) -> None:
-        self._author = getoutput('echo $USER').strip() == 'daniel'
         self.server_history_bandwidth = []
         self.max = len(cname)
         self.curr_time_step = -1
         self.record = np.zeros((len(time_label), len(sname), len(cname)), dtype=np.int32)
+        self.tcs_id_record = [[[ [] for _ in range(len(sname))] for _ in range(len(cname))] for _ in range(len(time_label))] # tidx, sidx, cidx -> List[iidx]} 
+        self.t_s_record = np.zeros((len(time_label), len(sname)), dtype=np.int32)
         self.reset()
         self.webpage_info_init()
 
@@ -370,29 +392,34 @@ class OutputAnalyser():
         print(f'server mean idle percent at > 95%: \n {idle_perc}')
 
     def output_result(self):
-        self.calc_score_1()
-        if self._author:
-            self.calc_score_2()
-        if self._author:
-            score_msg = f'<p>score1: {self.score1}</p> <p>score2: {self.score2}</p>'
-        else:
-            score_msg = f'<p>score: {self.score1}</p>'
-        self.empty_analyse()
-        inp = input('generate plot through webpage? y/[n] (default is n):')
-        if inp.strip().lower() == 'n' or inp.strip() == '':
-            return
-        elif inp.strip().lower() == 'y':
-            self.plot_manager = PlotManager()
-            self._analyse_server_history_and_plot()
-            self.plot_manager.show_webpage(score_msg)
-            return 
-        else:
-            print('input error, will not plot figure')
+        self.calc_score()
+        # score_msg = f'<p>score: {self.score1}</p>'
+        # inp = input('generate plot through webpage? y/[n] (default is n):')
+        # if inp.strip().lower() == 'n' or inp.strip() == '':
+        #     return
+        # elif inp.strip().lower() == 'y':
+        #     try: self.empty_analyse()
+        #     except:
+        #         print('your t length is too small to analyze and plot.')
+        #         exit(1)
+        #     self.plot_manager = PlotManager()
+        #     self._analyse_server_history_and_plot()
+        #     self.plot_manager.show_webpage(score_msg)
+        #     return 
+        # else:
+        #     print('input error, will not plot figure')
 
 
-    def dispatch_server(self, c_idx: int, s_idx: int, res: int):
-        self.record[self.curr_time_step, s_idx, c_idx] += res
-        self.server_used_bandwidth[s_idx] += res
+    def dispatch_server(self, c_idx: int, s_idx: int, stream_ids: List[str]):
+        stream_id_idxs = [ stream_id_map[i] for i in stream_ids ]
+        accu = 0
+        for stream_id_idx in stream_id_idxs:
+            res = client_demand[self.curr_time_step][stream_id_idx][c_idx]
+            self.record[self.curr_time_step, s_idx, c_idx] += res
+            self.t_s_record[self.curr_time_step, s_idx] += res
+            accu += res
+            # self.tcs_id_record
+            self.server_used_bandwidth[s_idx] += res
         if self.server_used_bandwidth[s_idx] > bandwidth[s_idx]:
             err_print(  f'bandwidth overflow at server {sname[s_idx]} (index: {s_idx}) \n'\
                         f'{self.count}th line \t time: {time_label[self.curr_time_step]} (index: {self.curr_time_step})',
@@ -402,7 +429,15 @@ class OutputAnalyser():
                         f'server edge node: {sname[s_idx]} (index: {s_idx}) \t client node: {cname[c_idx]} (index: {c_idx}) \t' \
                         f'{self.count}th line time: {time_label[self.curr_time_step]} (index: {self.curr_time_step})', 
                         self._curr_read_line)
+        return accu
     
+    def sum_of_client_at_t(self, time_step, cidx) -> float:
+        sum = 0
+        for stream_id, demand in client_demand[time_step].items():
+            sum += demand[cidx]
+        return sum
+
+
     def read_one_line(self, line: str):
         # client node process
         try:
@@ -414,50 +449,52 @@ class OutputAnalyser():
             err_print(f'not exists client node: {c}', line)
         if self.client_outputed[c_idx]:
             err_print(  f'output format error: the same client node "{c}" appears in the same time \n' \
-                        f'or output is not complete in the {self.count}th line time: {time_label[self.count]} \n', line)
+                        f'or output is not complete (some client demands 0 bandwidth, but you did not output) \n'\
+                        f'in the {self._curr_line_idx}th line, time: {time_label[self.curr_time_step]} \n', line)
         else:
             self.client_outputed[c_idx] = True
             self.count += 1
         # server node process
+        self.used_stream_id = set()
+        client_demand_at_t = self.sum_of_client_at_t(self.curr_time_step, c_idx)
         if remain.strip() == '':
-            if client_demand[self.curr_time_step, c_idx] != 0:
+            if client_demand_at_t != 0:
                 err_print(f'bandwidth of {cname[c_idx]} is not 0, but did not dispatch edge server')
             self._check_time_step_finished()
             return
-        dispatchs = remain[1: -1].split(',')
-        if len(dispatchs) == 1:
-            err_print('output format error', line)
-        if len(dispatchs) == 2:
-            s, res = dispatchs
-            self._process_server_res(c_idx, s, res, line)
-            if int(res) != client_demand[self.curr_time_step, c_idx]:
+        dispatchs = remain[1: -1].split('>,<')
+        if len(dispatchs) == 1: # only one server
+            dispatchs = remain[1: -1].split(',')
+            if len(dispatchs) == 1:
+                err_print('output format error', line)
+            s = dispatchs[0]
+            ids = dispatchs[1:]
+            res = self._process_server_res(c_idx, s, ids, line)
+            if int(res) != client_demand_at_t:
                 err_print(f'bandwidth of {cname[c_idx]} is not satisfied', line)
             self._check_time_step_finished()
             return
-        dispatchs = remain[1: -1].split('>,<')
-        if len(dispatchs) == 1:
-            err_print('output format error', line)
         res_accum = 0
         for d_str in dispatchs:
-            s, res = d_str.split(',')
-            self._process_server_res(c_idx, s, res, line)
+            str_split = d_str.split(',')
+            s = str_split[0]
+            ids = str_split[1:]
+            res = self._process_server_res(c_idx, s, ids, line)
             res_accum += int(res)
-        if res_accum != client_demand[self.curr_time_step, c_idx]:
+        if res_accum != client_demand_at_t:
             err_print(f'bandwidth accumulation of {cname[c_idx]} is not satisfied', line)
         self._check_time_step_finished()
     
-    def _process_server_res(self, c_idx: int, server_name: str, res_str: str, line: str):
+    def _process_server_res(self, c_idx: int, server_name: str, stream_ids: List[str], line: str):
         s_idx = sname_map.get(server_name) # s_idx = sname_map[s]
         if s_idx is None:
             err_print(f'not exists edge node: {server_name}', line)
-        try: 
-            res = int(res_str)
-            if res <= 0:
-                err_print(  f'dispatch lower than 0 value at time {time_label[self._curr_line_idx]} (index: {self._curr_line_idx}), '\
-                            f'server {server_name} (index: {s_idx}), client {cname[c_idx]} (index: {c_idx})', line)
-        except: 
-            err_print(f'fail in parsing bandwidth: {res}', line)
-        self.dispatch_server(c_idx, s_idx, res)
+        for id in stream_ids:
+            if id in self.used_stream_id:
+                err_print(f'stream id {id} is dispatched more than 2 or more times at time step {time_label[self.curr_time_step]} (line index: {self._curr_line_idx})', line)
+            else:
+                self.used_stream_id.add(id)
+        return self.dispatch_server(c_idx, s_idx, stream_ids)
     
     def _check_time_step_finished(self):
         if self.count == self.max:
@@ -474,36 +511,28 @@ class OutputAnalyser():
         if self.curr_time_step != len(time_label):
             err_print('not all time step is printed')
     
-    def calc_score_1(self):
+    def calc_score(self):
         if self.count not in [0, self.max]:
             err_print('output is not complete in the last time step')
         time_cnt = len(time_label)
         idx = math.ceil(time_cnt * 0.95) - 1
-        server_history = np.array(self.server_history_bandwidth)
+        server_history = np.array(self.server_history_bandwidth)  # t * s
+        sum_all_time = server_history.sum(axis=0)  # s
+        out = []
         server_history.sort(axis=0)
-        score = server_history[idx].sum()
-        # print('largest: \n', server_history[-1], '\n')
-        self.score1 = score
-        if self._author:
-            print(f'final score 1: {score}')
-        else:
-            print(f'final score: {score}')
-        print(f'separate cost: {server_history[idx]}')
-
-    def calc_score_2(self):
-        if self.count not in [0, self.max]:
-            err_print('output is not complete in the last time step')
-        time_cnt = len(time_label)
-        server_history = np.array(self.server_history_bandwidth)  # time * server_bandwidth
-        non_zero = server_history > 0
-        non_zero_count = non_zero.sum(axis=0)  # for each server
-        zero_count = np.ones(len(sname), dtype=np.int64) * time_cnt - non_zero_count
-        idx = zero_count + np.ceil(non_zero_count * 0.95).astype('int64') - 1
-        server_history.sort(axis=0)
-        score = server_history[idx, np.arange(len(idx))].sum()
-        self.score2 = score
-        print(f'final score 2: {score}')
-        print(f'separate cost: {server_history[idx, np.arange(len(idx))]}')
+        score_95 = server_history[idx] # s
+        for s_idx, sum in enumerate(sum_all_time):
+            if sum == 0:
+                out.append(0)
+                continue
+            if score_95[s_idx] <= base_cost:
+                out.append(base_cost)
+            else:
+                this_cost = 1 / (bandwidth[s_idx]) * (score_95[s_idx] - base_cost)**2 + score_95[s_idx]
+                out.append(round(this_cost))
+        score = np.array(out).sum()
+        print(f'final score: {score}\n')
+        print(f'separate cost: {out}')
 
 def gauge_time(args):
     start_time = time.time()
@@ -524,4 +553,3 @@ if __name__ == '__main__':
     analyser = OutputAnalyser()
     analyser.read_file(IOFile.output)
     analyser.output_result()
-

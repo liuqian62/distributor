@@ -1,4 +1,6 @@
+#include "Site_table.h"
 #include "Site.h"
+#include "utils.hpp"
 #include <unordered_map>
 #include <string>
 #include <vector>
@@ -25,6 +27,7 @@ private:
     string _Output = "/output/solution.txt";
 
     int qos_constraint;
+    int base_cost;
     bool is_first_time;
     double average_demand;
     int max_demand=0;
@@ -33,6 +36,9 @@ private:
     float xishu =1.0;
     int best_covered_site_id0;
     int best_covered_site_id1;
+
+    
+    
     
     ofstream ofs;
     vector<Site> sites;
@@ -42,8 +48,8 @@ private:
     vector<string> customer_ids;
     vector<string> site_names;
     vector<string> times;
-    vector<vector<int>> demands;
-    vector<vector<int>> distirbute_table;
+    vector<vector<Demans>> demands;
+    vector<Site_table> distirbute_table;
     vector<int> eveytime_demand;
     vector<int> custormer_num_of_sites;
     // vector<int> sort_custormer_num_of_sites_id;
